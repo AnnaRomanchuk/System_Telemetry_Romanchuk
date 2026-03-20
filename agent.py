@@ -1,9 +1,3 @@
-"""
-agent.py — Рівень 1: Збір телеметричних даних
-Клас TelemetryAgent зчитує системні метрики через psutil
-(або генерує симульовані дані, якщо psutil недоступний).
-"""
-
 import time
 import socket
 import math
@@ -19,10 +13,6 @@ except ImportError:
 
 
 class TelemetryAgent:
-    """
-    Агент збору телеметричних даних з локального хоста.
-    """
-
     def __init__(self, host_name: str = None):
         self.host_name = host_name or socket.gethostname()
         self._prev_net = None
@@ -42,8 +32,6 @@ class TelemetryAgent:
         else:
             return self._collect_simulated(timestamp)
 
-    # ── Реальний збір ──────────────────────────────────────────────
-
     def _collect_real(self, timestamp: str) -> dict:
         cpu_percent = psutil.cpu_percent(interval=0.5)
         cpu_freq = psutil.cpu_freq()
@@ -51,8 +39,6 @@ class TelemetryAgent:
 
         mem = psutil.virtual_memory()
 
-        # Для macOS беремо Data volume, бо саме він краще відповідає
-        # "Macintosh HD" у користувацькому розумінні.
         disk_path = "/"
         if platform.system() == "Darwin":
             preferred_path = "/System/Volumes/Data"
@@ -117,8 +103,6 @@ class TelemetryAgent:
                 "process_count": len(psutil.pids()),
             },
         }
-
-    # ── Симуляція (без psutil) ─────────────────────────────────────
 
     def _collect_simulated(self, timestamp: str) -> dict:
         t = time.time()

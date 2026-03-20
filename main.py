@@ -1,19 +1,3 @@
-"""
-main.py — Точка входу: запускає всю систему телеметрії
-
-Запуск:
-    python main.py
-    python main.py --interval 5 --port 8000
-
-Що відбувається:
-  1. Запускається HTTP-сервер (server.py)
-  2. Автоматично відкривається browser з dashboard
-  3. Кожні N секунд агент (agent.py) збирає метрики
-  4. AlertEngine (alerts.py) перевіряє пороги
-  5. TSDBStorage (data_base.py) зберігає часові ряди
-  6. Dashboard опитує /api/latest та /api/history
-"""
-
 import argparse
 import time
 import webbrowser

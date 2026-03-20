@@ -1,14 +1,6 @@
-"""
-alerts.py — Рівень 5: Система сповіщень
-AlertEngine перевіряє метрики відносно порогових значень
-і генерує структуровані сповіщення з підтримкою cooldown.
-"""
-
 import time
 from datetime import datetime, timezone
 
-
-# ── Порогові значення ──────────────────────────────────────────────
 THRESHOLDS = {
     "cpu_warn":  70.0,   # % попередження
     "cpu_crit":  85.0,   # % критичне
@@ -20,13 +12,6 @@ THRESHOLDS = {
 
 
 class AlertEngine:
-    """
-    Рушій перевірки порогів і генерації алертів.
-    Підтримує cooldown — не повторює той самий алерт
-    частіше ніж раз на cooldown_sec секунд.
-    Відповідає рівню «Інформування» (Розділ 2.5).
-    """
-
     INFO     = "INFO"
     WARNING  = "WARNING"
     CRITICAL = "CRITICAL"
@@ -36,10 +21,7 @@ class AlertEngine:
         self._last_fired: dict[str, float] = {}
 
     def check(self, metrics: dict) -> list[dict]:
-        """
-        Перевіряє знімок метрик.
-        Повертає список алертів (може бути порожнім).
-        """
+
         alerts = []
         host = metrics.get("host", "unknown")
         now  = time.monotonic()
@@ -77,7 +59,6 @@ class AlertEngine:
         else:
             return None
 
-        # Cooldown: пропустити, якщо нещодавно вже надсилали
         if now - self._last_fired.get(key, 0) < self.cooldown_sec:
             return None
 

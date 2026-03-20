@@ -1,13 +1,3 @@
-"""
-server.py — HTTP-сервер для експорту метрик
-
-CollectorServer надає:
-  GET /metrics
-  GET /api/latest
-  GET /api/history?limit=300
-  GET /
-"""
-
 import json
 import threading
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -37,8 +27,6 @@ class _Handler(BaseHTTPRequestHandler):
         except Exception as e:
             self._respond(500, "text/plain", f"Server error: {e}".encode("utf-8"))
 
-    # ── /metrics ──────────────────────────────────────────────────
-
     def _metrics(self):
         body = self.server.tsdb.export_prometheus(self.server.agent_host)
         self._respond(
@@ -47,7 +35,6 @@ class _Handler(BaseHTTPRequestHandler):
             body.encode("utf-8")
         )
 
-    # ── /api/latest ───────────────────────────────────────────────
 
     def _api_latest(self):
         snap = self.server.tsdb.snapshot(self.server.agent_host)
@@ -58,8 +45,6 @@ class _Handler(BaseHTTPRequestHandler):
             "alerts": self.server.latest_alerts,
         }
         self._json(data)
-
-    # ── /api/history ──────────────────────────────────────────────
 
     def _api_history(self):
         host = self.server.agent_host
@@ -90,8 +75,6 @@ class _Handler(BaseHTTPRequestHandler):
             "limit": limit,
         })
 
-    # ── / ─────────────────────────────────────────────────────────
-
     def _dashboard(self):
         html_path = Path(__file__).parent / "dashboard.html"
         if not html_path.exists():
@@ -104,7 +87,6 @@ class _Handler(BaseHTTPRequestHandler):
     def _not_found(self):
         self._respond(404, "text/plain", b"Not Found")
 
-    # ── Допоміжні методи ──────────────────────────────────────────
 
     def _json(self, data: dict):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
@@ -123,9 +105,6 @@ class _Handler(BaseHTTPRequestHandler):
 
 
 class CollectorServer:
-    """
-    HTTP pull-server для dashboard та зовнішніх колекторів.
-    """
 
     def __init__(self, tsdb: TSDBStorage, host: str, port: int = 8000):
         self.tsdb = tsdb

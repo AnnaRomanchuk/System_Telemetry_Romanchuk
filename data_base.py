@@ -1,9 +1,3 @@
-"""
-data_base.py — Рівень 3: In-memory база даних часових рядів
-TSDBStorage зберігає метрики у вигляді іменованих часових серій
-і надає Prometheus-сумісний формат для HTTP-експорту.
-"""
-
 from collections import deque
 
 
@@ -11,16 +5,10 @@ DEFAULT_MAX_POINTS = 1200
 
 
 class TSDBStorage:
-    """
-    In-memory база даних часових рядів.
-    Кожна серія — черга deque(maxlen=max_points) пар (timestamp, value).
-    """
 
     def __init__(self, max_points: int = DEFAULT_MAX_POINTS):
         self.max_points = max_points
         self._series: dict[str, deque] = {}
-
-    # ── Запис ─────────────────────────────────────────────────────
 
     def write(self, metrics: dict):
         ts = metrics["timestamp"]
@@ -48,7 +36,6 @@ class TSDBStorage:
                 self._series[key] = deque(maxlen=self.max_points)
             self._series[key].append((ts, value))
 
-    # ── Читання ───────────────────────────────────────────────────
 
     def query(self, host: str, series: str, last_n: int = None) -> list[tuple]:
         data = list(self._series.get(f"{host}.{series}", []))
@@ -69,8 +56,6 @@ class TSDBStorage:
                 series_name = key[len(prefix):]
                 result[series_name] = dq[-1][1]
         return result
-
-    # ── Prometheus-сумісний експорт ───────────────────────────────
 
     def export_prometheus(self, host: str) -> str:
         metrics_map = {
