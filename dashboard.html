@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Система телеметрії — Dashboard</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --panel: #ffffff;
+      --border: #d9e1ec;
+      --accent: #2f6fed;
+      --ok: #1f9d55;
+      --warn: #d98e04;
+      --danger: #d64545;
+      --text: #243447;
+      --muted: #6b7a90;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      width: 100%;
+      overflow-x: hidden;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    header {
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .title h1 {
+      font-size: 22px;
+      margin-bottom: 4px;
+    }
+
+    .title p {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .status {
+      font-size: 14px;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .status .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+      margin-right: 6px;
+      background: var(--ok);
+    }
+
+    .status.offline .dot {
+      background: var(--danger);
+    }
+
+    .container {
+      max-width: 1180px;
+      margin: 20px auto;
+      padding: 0 16px;
+      width: 100%;
+    }
+
+    .banner {
+      display: none;
+      margin-bottom: 16px;
+      padding: 12px 14px;
+      border: 1px solid #f1b0b0;
+      background: #fff2f2;
+      color: var(--danger);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      border: 1px solid var(--border);
+      background: var(--panel);
+      padding: 10px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .tab-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    .section { display: none; }
+    .section.active { display: block; }
+
+    .toolbar {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+      align-items: center;
+    }
+
+    .toolbar label {
+      font-size: 14px;
+      color: var(--muted);
+    }
+
+    select {
+      padding: 8px 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--panel);
+      font-size: 14px;
+    }
+
+    .small {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 20px;
+    }
+
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      min-width: 0;
+    }
+
+    .card h3 {
+      font-size: 13px;
+      color: var(--muted);
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: .5px;
+    }
+
+    .value {
+      font-size: 28px;
+      font-weight: bold;
+      line-height: 1.1;
+      word-break: break-word;
+    }
+
+    .value.ok { color: var(--ok); }
+    .value.warn { color: var(--warn); }
+    .value.danger { color: var(--danger); }
+
+    .sub {
+      font-size: 13px;
+      color: var(--muted);
+      margin-top: 8px;
+      line-height: 1.45;
+    }
+
+    .charts {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 14px;
+    }
+
+    .panel {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 18px;
+      width: 100%;
+      overflow: hidden;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 12px;
+      flex-wrap: wrap;
+    }
+
+    .panel h2 {
+      font-size: 16px;
+      margin: 0;
+    }
+
+    .legend {
+      display: flex;
+      gap: 14px;
+      flex-wrap: wrap;
+      align-items: center;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-color {
+      width: 12px;
+      height: 12px;
+      border-radius: 2px;
+      display: inline-block;
+      border: 2px solid transparent;
+      background: transparent;
+    }
+
+    .legend-blue { border-color: #2f6fed; }
+    .legend-green { border-color: #1f9d55; }
+    .legend-orange { border-color: #d98e04; }
+    .legend-red { border-color: #d64545; }
+
+    .chart-scroll {
+      width: 100%;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      border: 1px solid #eef2f7;
+      border-radius: 8px;
+      background: #fafcff;
+      padding: 8px;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .chart-inner {
+      position: relative;
+      height: 240px;
+      min-width: 900px;
+    }
+
+    .chart-inner canvas {
+      display: block;
+      width: 100% !important;
+      height: 240px !important;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 10px 8px;
+      text-align: left;
+      vertical-align: top;
+    }
+
+    th {
+      background: #f0f4fa;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .log-item {
+      padding: 10px 0;
+      border-bottom: 1px solid var(--border);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      margin-right: 8px;
+      font-weight: bold;
+    }
+
+    .b-info { background: #e8f1ff; color: var(--accent); }
+    .b-ok { background: #e9f8ef; color: var(--ok); }
+    .b-warn { background: #fff4db; color: var(--warn); }
+    .b-crit { background: #ffe6e6; color: var(--danger); }
+
+    @media (max-width: 980px) {
+      .cards { grid-template-columns: repeat(2, 1fr); }
+    }
+
+    @media (max-width: 680px) {
+      .cards { grid-template-columns: 1fr; }
+
+      header {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .status {
+        text-align: left;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <h1>Dashboard системи телеметрії</h1>
+    <p>Моніторинг системних ресурсів у реальному часі</p>
+  </div>
+
+  <div class="status" id="statusBox">
+    <span class="dot"></span><span id="connLabel">Підключення...</span><br>
+    <span id="clock" class="small">—</span>
+  </div>
+</header>
+
+<div class="container">
+  <div id="connBanner" class="banner">
+    Немає з’єднання з сервером.
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="overview">Огляд</button>
+    <button class="tab-btn" data-tab="metrics">Метрики</button>
+    <button class="tab-btn" data-tab="logs">Журнал подій</button>
+  </div>
+
+  <section id="overview" class="section active">
+    <div class="toolbar">
+      <label for="historyLimit">Показати історію:</label>
+      <select id="historyLimit">
+        <option value="60">Останні 5 хв</option>
+        <option value="360" selected>Останні 30 хв</option>
+        <option value="720">Остання 1 година</option>
+        <option value="1440">Останні 2 години</option>
+      </select>
+    </div>
+
+    <div class="cards">
+      <div class="card">
+        <h3>CPU</h3>
+        <div class="value" id="cpuVal">—</div>
+        <div class="sub">Завантаження процесора</div>
+      </div>
+
+      <div class="card">
+        <h3>RAM</h3>
+        <div class="value" id="ramVal">—</div>
+        <div class="sub">Використання оперативної пам’яті</div>
+      </div>
+
+      <div class="card">
+        <h3>Disk</h3>
+        <div class="value" id="diskVal">—</div>
+        <div class="sub" id="diskSub">Зайнятий простір диска</div>
+      </div>
+
+      <div class="card">
+        <h3>Network In</h3>
+        <div class="value" id="netVal">—</div>
+        <div class="sub">Вхідний трафік (MB/s)</div>
+      </div>
+    </div>
+
+    <div class="charts">
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Графік CPU / RAM</h2>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-color legend-blue"></span>CPU %</span>
+            <span class="legend-item"><span class="legend-color legend-green"></span>RAM %</span>
+          </div>
+        </div>
+        <div class="chart-scroll" id="cpuScroll">
+          <div class="chart-inner" id="cpuChartInner">
+            <canvas id="cpuChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-header">
+          <h2>Графік мережевого трафіку</h2>
+          <div class="legend">
+            <span class="legend-item"><span class="legend-color legend-orange"></span>Network In (MB/s)</span>
+            <span class="legend-item"><span class="legend-color legend-red"></span>Network Out (MB/s)</span>
+          </div>
+        </div>
+        <div class="chart-scroll" id="netScroll">
+          <div class="chart-inner" id="netChartInner">
+            <canvas id="netChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="metrics" class="section">
+    <div class="panel">
+      <h2>Детальна таблиця метрик</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Показник</th>
+            <th>Значення</th>
+            <th>Поріг</th>
+            <th>Статус</th>
+          </tr>
+        </thead>
+        <tbody id="metricsTable">
+          <tr>
+            <td colspan="4">Очікування даних...</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section id="logs" class="section">
+    <div class="panel">
+      <h2>Журнал подій</h2>
+      <div id="logBox">
+        <div class="log-item">
+          <span class="badge b-info">INFO</span>
+          Dashboard запущено. Очікування даних...
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<script>
+  const API_LATEST = '/api/latest';
+  const API_HISTORY = '/api/history';
+  const POLL_MS = 3000;
+
+  const THRESHOLDS = {
+    cpu: { warn: 70, crit: 85 },
+    ram: { warn: 75, crit: 90 },
+    disk: { warn: 75, crit: 90 }
+  };
+
+  function getClass(val, type) {
+    const t = THRESHOLDS[type];
+    if (!t) return '';
+    if (val >= t.crit) return 'danger';
+    if (val >= t.warn) return 'warn';
+    return 'ok';
+  }
+
+  function getStatusText(val, type) {
+    const t = THRESHOLDS[type];
+    if (!t) return 'OK';
+    if (val >= t.crit) return 'Критично';
+    if (val >= t.warn) return 'Попередження';
+    return 'Норма';
+  }
+
+  function shortTime(isoStr) {
+    return (isoStr || '').slice(11, 19);
+  }
+
+  function addLog(level, text) {
+    const logBox = document.getElementById('logBox');
+    const cls = level === 'CRITICAL' ? 'b-crit'
+              : level === 'WARNING' ? 'b-warn'
+              : level === 'OK' ? 'b-ok'
+              : 'b-info';
+
+    const div = document.createElement('div');
+    div.className = 'log-item';
+    div.innerHTML = `<span class="badge ${cls}">${level}</span>${text}`;
+    logBox.prepend(div);
+
+    while (logBox.children.length > 20) {
+      logBox.removeChild(logBox.lastChild);
+    }
+  }
+
+  function setConnection(ok) {
+    const box = document.getElementById('statusBox');
+    const label = document.getElementById('connLabel');
+    const banner = document.getElementById('connBanner');
+
+    if (ok) {
+      box.classList.remove('offline');
+      label.textContent = 'Сервер онлайн';
+      banner.style.display = 'none';
+    } else {
+      box.classList.add('offline');
+      label.textContent = 'Сервер офлайн';
+      banner.style.display = 'block';
+    }
+  }
+
+  function updateClock() {
+    document.getElementById('clock').textContent =
+      new Date().toLocaleTimeString('uk-UA');
+  }
+
+  setInterval(updateClock, 1000);
+  updateClock();
+
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(btn.dataset.tab).classList.add('active');
+    });
+  });
+
+  function currentLimit() {
+    return Number(document.getElementById('historyLimit').value || 360);
+  }
+
+  document.getElementById('historyLimit').addEventListener('change', () => {
+    pollHistory(true);
+  });
+
+  function setChartScrollWidth(pointCount) {
+    const pxPerPoint = 10;
+    const minWidth = 900;
+    const maxWidth = 2200;
+    const width = Math.min(maxWidth, Math.max(minWidth, pointCount * pxPerPoint));
+
+    document.getElementById('cpuChartInner').style.width = width + 'px';
+    document.getElementById('netChartInner').style.width = width + 'px';
+  }
+
+  function isNearRightEdge(el, threshold = 40) {
+    return (el.scrollWidth - el.clientWidth - el.scrollLeft) <= threshold;
+  }
+
+  function keepRightIfNeeded(scrollEl, updater) {
+    const shouldStickRight = isNearRightEdge(scrollEl);
+    updater();
+    if (shouldStickRight) {
+      scrollEl.scrollLeft = scrollEl.scrollWidth;
+    }
+  }
+
+  const commonChartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    plugins: {
+      legend: {
+        display: false
+      }
+    },
+    scales: {
+      x: {
+        ticks: { maxTicksLimit: 14 }
+      },
+      y: {
+        beginAtZero: true
+      }
+    }
+  };
+
+  const cpuChart = new Chart(document.getElementById('cpuChart'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'CPU %',
+          data: [],
+          borderColor: '#2f6fed',
+          tension: 0.15,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          pointHitRadius: 8,
+          borderWidth: 2,
+          fill: false
+        },
+        {
+          label: 'RAM %',
+          data: [],
+          borderColor: '#1f9d55',
+          tension: 0.15,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          pointHitRadius: 8,
+          borderWidth: 2,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      ...commonChartOptions,
+      scales: {
+        ...commonChartOptions.scales,
+        y: {
+          beginAtZero: true,
+          max: 100
+        }
+      }
+    }
+  });
+
+  const netChart = new Chart(document.getElementById('netChart'), {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        {
+          label: 'Network In (MB/s)',
+          data: [],
+          borderColor: '#d98e04',
+          tension: 0.15,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          pointHitRadius: 8,
+          borderWidth: 2,
+          fill: false
+        },
+        {
+          label: 'Network Out (MB/s)',
+          data: [],
+          borderColor: '#d64545',
+          tension: 0.15,
+          pointRadius: 2,
+          pointHoverRadius: 4,
+          pointHitRadius: 8,
+          borderWidth: 2,
+          fill: false
+        }
+      ]
+    },
+    options: {
+      ...commonChartOptions,
+      scales: {
+        ...commonChartOptions.scales,
+        y: {
+          beginAtZero: true
+        }
+      }
+    }
+  });
+
+  async function pollLatest() {
+    try {
+      const res = await fetch(API_LATEST);
+      if (!res.ok) throw new Error('API error');
+
+      const data = await res.json();
+      setConnection(true);
+
+      const m = data.metrics || {};
+
+      const cpu = Number(m['cpu.usage_pct'] || 0);
+      const ram = Number(m['memory.usage_pct'] || 0);
+
+      const disk = Number(m['disk.usage_pct'] || 0);
+      const diskUsed = Number(m['disk.used_gb'] || 0);
+      const diskFree = Number(m['disk.free_gb'] || 0);
+      const diskTotal = Number(m['disk.total_gb'] || 0);
+
+      const netIn = Number(m['network.in_mbps'] || 0);
+      const netOut = Number(m['network.out_mbps'] || 0);
+
+      const ramUsed = Number(m['memory.used_mb'] || 0);
+      const ramTotal = Number(m['memory.total_mb'] || 0);
+
+      const cpuEl = document.getElementById('cpuVal');
+      const ramEl = document.getElementById('ramVal');
+      const diskEl = document.getElementById('diskVal');
+      const netEl = document.getElementById('netVal');
+
+      cpuEl.textContent = cpu.toFixed(1) + '%';
+      ramEl.textContent = ram.toFixed(1) + '%';
+      diskEl.textContent = disk.toFixed(1) + '%';
+      netEl.textContent = netIn.toFixed(3) + ' MB/s';
+
+      cpuEl.className = 'value ' + getClass(cpu, 'cpu');
+      ramEl.className = 'value ' + getClass(ram, 'ram');
+      diskEl.className = 'value ' + getClass(disk, 'disk');
+      netEl.className = 'value';
+
+      if (diskTotal > 0) {
+        document.getElementById('diskSub').textContent =
+          `Зайнято ${diskUsed.toFixed(1)} GB з ${diskTotal.toFixed(1)} GB, вільно ${diskFree.toFixed(1)} GB`;
+      } else {
+        document.getElementById('diskSub').textContent = 'Зайнятий простір диска';
+      }
+
+      const rows = [
+        { name: 'CPU', value: cpu.toFixed(1) + '%', threshold: '70 / 85%', status: getStatusText(cpu, 'cpu') },
+        { name: 'RAM', value: ram.toFixed(1) + '%', threshold: '75 / 90%', status: getStatusText(ram, 'ram') },
+        { name: 'RAM used', value: ramUsed.toFixed(1) + ' MB', threshold: '—', status: `Із ${ramTotal.toFixed(1)} MB` },
+
+        { name: 'Disk usage', value: disk.toFixed(1) + '%', threshold: '75 / 90%', status: getStatusText(disk, 'disk') },
+        { name: 'Disk used', value: diskUsed.toFixed(1) + ' GB', threshold: '—', status: 'Зайнятий обсяг' },
+        { name: 'Disk free', value: diskFree.toFixed(1) + ' GB', threshold: '—', status: 'Вільний обсяг' },
+        { name: 'Disk total', value: diskTotal.toFixed(1) + ' GB', threshold: '—', status: 'Загальний обсяг' },
+
+        { name: 'Network In', value: netIn.toFixed(3) + ' MB/s', threshold: '—', status: 'Інформація' },
+        { name: 'Network Out', value: netOut.toFixed(3) + ' MB/s', threshold: '—', status: 'Інформація' }
+      ];
+
+      document.getElementById('metricsTable').innerHTML = rows.map(r => `
+        <tr>
+          <td>${r.name}</td>
+          <td>${r.value}</td>
+          <td>${r.threshold}</td>
+          <td>${r.status}</td>
+        </tr>
+      `).join('');
+
+      (data.alerts || []).forEach(a => {
+        addLog(a.severity || 'INFO', a.message || 'Подія');
+      });
+
+    } catch (e) {
+      setConnection(false);
+    }
+  }
+
+  async function pollHistory(forceRight = false) {
+    try {
+      const limit = currentLimit();
+      const res = await fetch(`${API_HISTORY}?limit=${limit}`);
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const h = data.history || {};
+
+      const cpuRows = h['cpu.usage_pct'] || [];
+      const ramRows = h['memory.usage_pct'] || [];
+      const inRows = h['network.in_mbps'] || [];
+      const outRows = h['network.out_mbps'] || [];
+
+      const labels = cpuRows.map(r => shortTime(r.t));
+
+      const cpuScroll = document.getElementById('cpuScroll');
+      const netScroll = document.getElementById('netScroll');
+
+      const cpuShouldStick = forceRight || isNearRightEdge(cpuScroll);
+      const netShouldStick = forceRight || isNearRightEdge(netScroll);
+
+      setChartScrollWidth(labels.length);
+
+      keepRightIfNeeded(cpuScroll, () => {
+        cpuChart.data.labels = labels;
+        cpuChart.data.datasets[0].data = cpuRows.map(r => r.v);
+        cpuChart.data.datasets[1].data = ramRows.map(r => r.v);
+        cpuChart.update('none');
+      });
+
+      keepRightIfNeeded(netScroll, () => {
+        netChart.data.labels = labels;
+        netChart.data.datasets[0].data = inRows.map(r => r.v);
+        netChart.data.datasets[1].data = outRows.map(r => r.v);
+        netChart.update('none');
+      });
+
+      if (cpuShouldStick) cpuScroll.scrollLeft = cpuScroll.scrollWidth;
+      if (netShouldStick) netScroll.scrollLeft = netScroll.scrollWidth;
+
+    } catch (e) {
+      // ignore
+    }
+  }
+
+  addLog('INFO', 'Інтерфейс dashboard успішно ініціалізовано');
+
+  pollLatest();
+  pollHistory(true);
+  setInterval(pollLatest, POLL_MS);
+  setInterval(() => pollHistory(false), POLL_MS + 500);
+</script>
+</body>
+</html>
