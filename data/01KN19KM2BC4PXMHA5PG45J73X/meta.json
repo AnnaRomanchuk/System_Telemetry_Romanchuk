@@ -1,0 +1,18 @@
+{
+	"ulid": "01KN19KM2BC4PXMHA5PG45J73X",
+	"minTime": 1774922402891,
+	"maxTime": 1774929600000,
+	"stats": {
+		"numSamples": 20,
+		"numFloatSamples": 20,
+		"numSeries": 5,
+		"numChunks": 5
+	},
+	"compaction": {
+		"level": 1,
+		"sources": [
+			"01KN19KM2BC4PXMHA5PG45J73X"
+		]
+	},
+	"version": 1
+}

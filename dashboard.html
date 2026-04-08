@@ -264,6 +264,14 @@
       height: 240px !important;
     }
 
+    .grafana-frame {
+      width: 100%;
+      height: 320px;
+      border: 1px solid #eef2f7;
+      border-radius: 8px;
+      background: #fafcff;
+    }
+
     table {
       width: 100%;
       border-collapse: collapse;
@@ -388,31 +396,25 @@
       <div class="panel">
         <div class="panel-header">
           <h2>Графік CPU / RAM</h2>
-          <div class="legend">
-            <span class="legend-item"><span class="legend-color legend-blue"></span>CPU %</span>
-            <span class="legend-item"><span class="legend-color legend-green"></span>RAM %</span>
-          </div>
         </div>
-        <div class="chart-scroll" id="cpuScroll">
-          <div class="chart-inner" id="cpuChartInner">
-            <canvas id="cpuChart"></canvas>
-          </div>
-        </div>
+        <iframe
+          id="grafanaCpuRam"
+          class="grafana-frame"
+          src="http://localhost:3000/d-solo/adff2pv/dashboard-system-telemetry?orgId=1&panelId=panel-1&from=now-30m&to=now&theme=light"
+          frameborder="0">
+        </iframe>
       </div>
 
       <div class="panel">
         <div class="panel-header">
           <h2>Графік мережевого трафіку</h2>
-          <div class="legend">
-            <span class="legend-item"><span class="legend-color legend-orange"></span>Network In (MB/s)</span>
-            <span class="legend-item"><span class="legend-color legend-red"></span>Network Out (MB/s)</span>
-          </div>
         </div>
-        <div class="chart-scroll" id="netScroll">
-          <div class="chart-inner" id="netChartInner">
-            <canvas id="netChart"></canvas>
-          </div>
-        </div>
+        <iframe
+          id="grafanaNetwork"
+          class="grafana-frame"
+          src="http://localhost:3000/d-solo/adff2pv/dashboard-system-telemetry?orgId=1&panelId=panel-2&from=now-30m&to=now&theme=light"
+          frameborder="0">
+        </iframe>
       </div>
     </div>
   </section>
@@ -453,8 +455,11 @@
 
 <script>
   const API_LATEST = '/api/latest';
-  const API_HISTORY = '/api/history';
   const POLL_MS = 3000;
+
+  const GRAFANA_DASHBOARD_UID = 'adff2pv';
+  const GRAFANA_ORG_ID = 1;
+  const GRAFANA_THEME = 'light';
 
   const THRESHOLDS = {
     cpu: { warn: 70, crit: 85 },
@@ -476,10 +481,6 @@
     if (val >= t.crit) return 'Критично';
     if (val >= t.warn) return 'Попередження';
     return 'Норма';
-  }
-
-  function shortTime(isoStr) {
-    return (isoStr || '').slice(11, 19);
   }
 
   function addLog(level, text) {
@@ -533,133 +534,32 @@
   });
 
   function currentLimit() {
-    return Number(document.getElementById('historyLimit').value || 360);
+    return Number(document.getElementById('historyLimit').value || 180);
+  }
+
+  function getGrafanaFromRange() {
+    const val = currentLimit();
+    if (val === 30) return 'now-5m';
+    if (val === 180) return 'now-30m';
+    if (val === 360) return 'now-1h';
+    if (val === 720) return 'now-2h';
+    return 'now-30m';
+  }
+
+  function buildGrafanaPanelUrl(panelId) {
+    const from = getGrafanaFromRange();
+    return `http://localhost:3000/d-solo/${GRAFANA_DASHBOARD_UID}/dashboard-system-telemetry?orgId=${GRAFANA_ORG_ID}&panelId=${panelId}&from=${from}&to=now&theme=${GRAFANA_THEME}`;
+  }
+
+  function updateGrafanaFrames() {
+    const cpuFrame = document.getElementById('grafanaCpuRam');
+    const netFrame = document.getElementById('grafanaNetwork');
+    if (cpuFrame) cpuFrame.src = buildGrafanaPanelUrl('panel-1');
+    if (netFrame) netFrame.src = buildGrafanaPanelUrl('panel-2');
   }
 
   document.getElementById('historyLimit').addEventListener('change', () => {
-    pollHistory(true);
-  });
-
-  function setChartScrollWidth(pointCount) {
-    const pxPerPoint = 10;
-    const minWidth = 900;
-    const maxWidth = 2200;
-    const width = Math.min(maxWidth, Math.max(minWidth, pointCount * pxPerPoint));
-
-    document.getElementById('cpuChartInner').style.width = width + 'px';
-    document.getElementById('netChartInner').style.width = width + 'px';
-  }
-
-  function isNearRightEdge(el, threshold = 40) {
-    return (el.scrollWidth - el.clientWidth - el.scrollLeft) <= threshold;
-  }
-
-  function keepRightIfNeeded(scrollEl, updater) {
-    const shouldStickRight = isNearRightEdge(scrollEl);
-    updater();
-    if (shouldStickRight) {
-      scrollEl.scrollLeft = scrollEl.scrollWidth;
-    }
-  }
-
-  const commonChartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    animation: false,
-    plugins: {
-      legend: {
-        display: false
-      }
-    },
-    scales: {
-      x: {
-        ticks: { maxTicksLimit: 14 }
-      },
-      y: {
-        beginAtZero: true
-      }
-    }
-  };
-
-  const cpuChart = new Chart(document.getElementById('cpuChart'), {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: 'CPU %',
-          data: [],
-          borderColor: '#2f6fed',
-          tension: 0.15,
-          pointRadius: 2,
-          pointHoverRadius: 4,
-          pointHitRadius: 8,
-          borderWidth: 2,
-          fill: false
-        },
-        {
-          label: 'RAM %',
-          data: [],
-          borderColor: '#1f9d55',
-          tension: 0.15,
-          pointRadius: 2,
-          pointHoverRadius: 4,
-          pointHitRadius: 8,
-          borderWidth: 2,
-          fill: false
-        }
-      ]
-    },
-    options: {
-      ...commonChartOptions,
-      scales: {
-        ...commonChartOptions.scales,
-        y: {
-          beginAtZero: true,
-          max: 100
-        }
-      }
-    }
-  });
-
-  const netChart = new Chart(document.getElementById('netChart'), {
-    type: 'line',
-    data: {
-      labels: [],
-      datasets: [
-        {
-          label: 'Network In (MB/s)',
-          data: [],
-          borderColor: '#d98e04',
-          tension: 0.15,
-          pointRadius: 2,
-          pointHoverRadius: 4,
-          pointHitRadius: 8,
-          borderWidth: 2,
-          fill: false
-        },
-        {
-          label: 'Network Out (MB/s)',
-          data: [],
-          borderColor: '#d64545',
-          tension: 0.15,
-          pointRadius: 2,
-          pointHoverRadius: 4,
-          pointHitRadius: 8,
-          borderWidth: 2,
-          fill: false
-        }
-      ]
-    },
-    options: {
-      ...commonChartOptions,
-      scales: {
-        ...commonChartOptions.scales,
-        y: {
-          beginAtZero: true
-        }
-      }
-    }
+    updateGrafanaFrames();
   });
 
   async function pollLatest() {
@@ -740,58 +640,10 @@
     }
   }
 
-  async function pollHistory(forceRight = false) {
-    try {
-      const limit = currentLimit();
-      const res = await fetch(`${API_HISTORY}?limit=${limit}`);
-      if (!res.ok) return;
-
-      const data = await res.json();
-      const h = data.history || {};
-
-      const cpuRows = h['cpu.usage_pct'] || [];
-      const ramRows = h['memory.usage_pct'] || [];
-      const inRows = h['network.in_mbps'] || [];
-      const outRows = h['network.out_mbps'] || [];
-
-      const labels = cpuRows.map(r => shortTime(r.t));
-
-      const cpuScroll = document.getElementById('cpuScroll');
-      const netScroll = document.getElementById('netScroll');
-
-      const cpuShouldStick = forceRight || isNearRightEdge(cpuScroll);
-      const netShouldStick = forceRight || isNearRightEdge(netScroll);
-
-      setChartScrollWidth(labels.length);
-
-      keepRightIfNeeded(cpuScroll, () => {
-        cpuChart.data.labels = labels;
-        cpuChart.data.datasets[0].data = cpuRows.map(r => r.v);
-        cpuChart.data.datasets[1].data = ramRows.map(r => r.v);
-        cpuChart.update('none');
-      });
-
-      keepRightIfNeeded(netScroll, () => {
-        netChart.data.labels = labels;
-        netChart.data.datasets[0].data = inRows.map(r => r.v);
-        netChart.data.datasets[1].data = outRows.map(r => r.v);
-        netChart.update('none');
-      });
-
-      if (cpuShouldStick) cpuScroll.scrollLeft = cpuScroll.scrollWidth;
-      if (netShouldStick) netScroll.scrollLeft = netScroll.scrollWidth;
-
-    } catch (e) {
-      // ignore
-    }
-  }
-
   addLog('INFO', 'Інтерфейс dashboard успішно ініціалізовано');
-
+  updateGrafanaFrames();
   pollLatest();
-  pollHistory(true);
   setInterval(pollLatest, POLL_MS);
-  setInterval(() => pollHistory(false), POLL_MS + 500);
 </script>
 </body>
 </html>

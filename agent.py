@@ -59,8 +59,11 @@ class TelemetryAgent:
             prev_recv, prev_sent, prev_ts = self._prev_net
             elapsed = now_ts - prev_ts
             if elapsed > 0:
-                net_in_mbps = (net_now.bytes_recv - prev_recv) / elapsed / 1_000_000
-                net_out_mbps = (net_now.bytes_sent - prev_sent) / elapsed / 1_000_000
+                net_in_mbps = ((net_now.bytes_recv - prev_recv) / elapsed /
+            1_000_000)
+                net_out_mbps = ((net_now.bytes_sent - prev_sent) / elapsed /
+            1_000_000)
+
 
         self._prev_net = (net_now.bytes_recv, net_now.bytes_sent, now_ts)
 

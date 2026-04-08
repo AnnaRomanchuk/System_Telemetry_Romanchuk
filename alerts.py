@@ -47,11 +47,13 @@ class AlertEngine:
 
         return alerts
 
-    def _evaluate(self, key, host, metric, value, warn, crit, now) -> dict | None:
+    def _evaluate(self, key, host, metric, value, warn, crit, now) -> (dict |
+    None):
         if value >= crit:
             severity = self.CRITICAL
             threshold = crit
-            msg = f"{host}: {metric} = {value}% — критичний поріг {crit}% перевищено"
+            msg = (f"{host}: {metric} = {value}% — критичний поріг {crit}% "
+    f"перевищено")
         elif value >= warn:
             severity = self.WARNING
             threshold = warn
